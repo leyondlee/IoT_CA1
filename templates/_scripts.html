@@ -1,0 +1,19 @@
+<!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+<script src="{{ url_for('static', filename='js/jquery-3.2.1.min.js') }}"></script>
+<!-- Include all compiled plugins (below), or include individual files as needed -->
+<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+
+<!-- https://www.gstatic.com/charts/loader.js -->
+<script type="text/javascript" src="{{ url_for('static', filename='js/loader.js') }}"></script>
+
+<script type="text/javascript" src="{{ url_for('static', filename='js/js.cookie-2.1.4.min.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='js/bootstrap-toggle.min.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='js/bootstrap-slider.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='js/bootstrap-table.js') }}"></script>
+
+<script>
+	$(document).ready(function(){
+		var currentPage = document.location.pathname.replace(/.+\//i, "");
+		$("#navbar ul li a[href='" + currentPage + "']").parent().addClass("active");
+	});
+</script>

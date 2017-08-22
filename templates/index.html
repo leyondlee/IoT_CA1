@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+	{% include '_header.html' %}
+	
+	<body>
+		<div class="container-fluid">
+			<div class="row">
+				<div class="col-sm-3 col-lg-2">
+					{% include '_navbar.html' %}
+				</div>
+				
+				<div class="col-sm-9 col-lg-10">
+					<div class="page-header">
+						<h1><i class="fa fa-dashboard"></i> Dashboard</h1>
+					</div>
+					
+					<div class="panel panel-default">
+						<div class="panel-heading">
+							<strong>Light Levels</strong>
+							{% with id='light_autorefresh' %}
+							{% include '_autorefresh.html' %}
+							{% endwith %}
+						</div>
+						<div class="panel-body">
+							<div>Light Level: <span id="lightvalue" class="fa fa-spinner fa-spin"></span></div>
+							<div id="lightchart"></div>
+						</div>
+					</div>
+					
+					<br>
+					
+					<div class="panel panel-default">
+						<div class="panel-heading">
+							<strong>Temperature and Humidity</strong>
+							{% with id='th_autorefresh' %}
+							{% include '_autorefresh.html' %}
+							{% endwith %}
+						</div>
+						<div class="panel-body">
+							<div>Temperature: <span id="tempvalue" class="fa fa-spinner fa-spin"></span>, Humidity: <span id="humvalue" class="fa fa-spinner fa-spin"></span></div>
+							<div id="thchart"></div>
+						</div>
+					</div>
+					
+					<br>
+					
+					<div class="col-md-6">
+						<div class="panel panel-default">
+							<div class="panel-heading">
+								<strong>LDR Sensor</strong>
+							</div>
+							<div class="panel-body">
+								<div class="table-responsive">
+									<table class="table table-bordered table-hover" id="ldr_table" data-show-refresh="true" data-search="true" data-pagination="true"></table>
+								</div>
+							</div>
+						</div>
+					</div>
+					
+					<div class="col-md-6">
+						<div class="panel panel-default">
+							<div class="panel-heading">
+								<strong>DHT11 Sensor</strong>
+							</div>
+							<div class="panel-body">
+								<div class="table-responsive">
+									<table class="table table-bordered table-hover" id="dht11_table" data-show-refresh="true" data-search="true" data-pagination="true"></table>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+		{% include '_scripts.html' %}
+		
+		<script>
+			var light_timeout;
+			var th_timeout;
+			
+			var light_autorefresh = $('#light_autorefresh');
+			var th_autorefresh = $('#th_autorefresh');
+			var lightvalue = $('#lightvalue');
+			var tempvalue = $('#tempvalue');
+			var humvalue = $('#humvalue');
+			
+			light_autorefresh.on('change', function() {
+				if (light_timeout) {
+					clearTimeout(light_timeout);
+					updateLight();
+				}
+				
+				Cookies.set('light_autorefresh', this.value);
+			});
+			
+			th_autorefresh.on('change', function() {
+				if (th_timeout) {
+					clearTimeout(th_timeout);
+					updateTH();
+				}
+				
+				Cookies.set('th_autorefresh', this.value);
+			});
+			
+			var light_autorefresh_value = Cookies.get('light_autorefresh');
+			if (light_autorefresh_value) {
+				light_autorefresh.val(light_autorefresh_value);
+			}
+			
+			var th_autorefresh_value = Cookies.get('th_autorefresh');
+			if (th_autorefresh_value) {
+				th_autorefresh.val(th_autorefresh_value);
+			}
+			
+			google.charts.load('current', {packages: ['corechart', 'line']});
+			google.charts.setOnLoadCallback(updateLight);
+			google.charts.setOnLoadCallback(updateTH);
+			
+			function getTimeoutInterval(num) {
+				var timeout;
+				if (num == 1) {
+					timeout = 5000;
+				} else if (num == 2) {
+					timeout = 10000;
+				} else if (num == 3) {
+					timeout = 30000;
+				} else if (num == 4) {
+					timeout = 60000;
+				}
+				
+				return timeout;
+			}
+			
+			function drawChart(id,result,options) {
+				var data = new google.visualization.DataTable(result);
+				var chart = new google.visualization.LineChart(document.getElementById(id));
+				chart.draw(data, options);
+			}
+			
+			function updateLight() {
+				$.getJSON("{{ url_for('lightdatalatest') }}", function(result) {
+					var value = result.Value;
+					
+					if (value) {
+						lightvalue.removeClass();
+						lightvalue.html(value);
+					}
+				});
+				
+				$.getJSON("{{ url_for('lightdata') }}", function(result) {
+					var options = {
+						height: 400,
+						hAxis: {
+							title: 'Timestamp'
+						},
+						vAxis: {
+							title: 'Light Level',
+							viewWindow: {
+								min: 0
+							},
+							viewWindowMode: 'pretty'
+						},
+						series: {
+							1: {curveType: 'function'}
+						},
+						explorer: {
+							keepInBounds: true,
+							axis: 'horizontal',
+							maxZoomIn: 0,
+							maxZoomOut: 1
+						}
+					};
+					
+					drawChart('lightchart',result,options);
+					
+					var selected = light_autorefresh.val();
+					var timeout = getTimeoutInterval(selected);
+					
+					if (timeout) {
+						light_timeout = setTimeout(updateLight,timeout);
+					}
+				});
+			}
+			
+			function updateTH() {
+				$.getJSON("{{ url_for('thdatalatest') }}", function(result) {
+					var temperature = result.Temperature + '&#176;C';
+					var humidity = result.Humidity + '%';
+					
+					if (temperature && humidity) {
+						tempvalue.removeClass();
+						tempvalue.html(temperature);
+						
+						humvalue.removeClass();
+						humvalue.html(humidity);
+					}
+				});
+				
+				$.getJSON("{{ url_for('thdata') }}", function(result) {
+					var options = {
+						height: 400,
+						hAxis: {
+							title: 'Timestamp'
+						},
+						vAxis: {
+							title: 'Temperature and Humidity',
+							viewWindow: {
+								min: 0
+							},
+							viewWindowMode: 'pretty'
+						},
+						series: {
+							1: {curveType: 'function'}
+						},
+						explorer: {
+							keepInBounds: true,
+							axis: 'horizontal',
+							maxZoomIn: 0,
+							maxZoomOut: 1
+						}
+					};
+					
+					drawChart('thchart',result,options);
+					
+					var selected = th_autorefresh.val();
+					var timeout = getTimeoutInterval(selected);
+					
+					if (timeout) {
+						th_timeout = setTimeout(updateTH,timeout);
+					}
+				});
+			}
+			
+			$(document).ready(function() {
+				var ldr_table = $('#ldr_table')
+				var dht11_table = $('#dht11_table')
+				
+				ldr_table.bootstrapTable({
+					url: '{{ url_for("lightdatatable") }}',
+					columns: [{
+						field: 'count',
+						title: '#',
+						sortable: 'true'
+					}, {
+						field: 'datetime',
+						title: 'Datetime',
+						sortable: 'true'
+					}, {
+						field: 'value',
+						title: 'Value',
+						sortable: 'true'
+					}]
+				});
+				
+				dht11_table.bootstrapTable({
+					url: '{{ url_for("thdatatable") }}',
+					columns: [{
+						field: 'count',
+						title: '#',
+						sortable: 'true'
+					}, {
+						field: 'datetime',
+						title: 'Datetime',
+						sortable: 'true'
+					}, {
+						field: 'temperature',
+						title: 'Temperature',
+						sortable: 'true'
+					}, {
+						field: 'humidity',
+						title: 'Humidity',
+						sortable: 'true'
+					}]
+				});
+			});
+		</script>
+	</body>
+</html>

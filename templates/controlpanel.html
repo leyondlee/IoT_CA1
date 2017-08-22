@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+	{% include '_header.html' %}
+	
+	<body>
+		<div class="container-fluid">
+			<div class="row">
+				<div class="col-sm-3 col-lg-2">
+					{% include '_navbar.html' %}
+				</div>
+				
+				<div class="col-sm-9 col-lg-10">
+					<div class="page-header">
+						<h1><i class="fa fa-desktop"></i> Control Panel</h1>
+					</div>
+					
+					<div class="col-md-6">
+						<div class="panel panel-default">
+							<div class="panel-heading">
+								<strong>Camera</strong>
+								<div class="pull-right hidden">
+									Refresh:
+									<select id="camera_autorefresh">
+										<option value="0" selected>Disabled</option>
+										<option value="1">1s</option>
+										<option value="2">5s</option>
+										<option value="3">10s</option>
+										<option value="4">30s</option>
+										<option value="5">60s</option>
+									</select>
+								</div>
+							</div>
+							<div class="panel-body">
+								<div class="form-horizontal">
+									<div class="form-group">
+										<label class="control-label col-sm-2" for="thprocessbutton">Status:</label>
+										<div>
+											<input type="checkbox" class="form-control" data-toggle="toggle" id="camerabutton">
+											<button type="button" class="btn btn-default disabled" id="camerarefreshbutton" onclick="camerarefresh()"><span class="glyphicon glyphicon-refresh"></span></button>
+										</div>
+									</div>
+								</div>
+								<img class="img-thumbnail img-responsive hidden" id="cameraimage">
+							</div>
+						</div>
+						<div class="panel panel-default">
+							<div class="panel-heading">
+								<strong>Processes</strong>
+							</div>
+							<div class="panel-body">
+								<div class="row">
+									<div class="col-md-4">
+										<img class="img-responsive" src="{{ url_for('static', filename='images/ldr.png') }}">
+									</div>
+									<div class="col-md-7 col-md-offset-1">
+										<br>
+										<div class="form-group">
+											<label for="lightprocessbutton">Light Monitor:</label>
+											<br>
+											<input type="checkbox" class="form-control" data-toggle="toggle" data-on="Running" data-off="Stopped" data-onstyle="success" data-offstyle="danger" id="lightprocessbutton">
+										</div>
+									</div>
+								</div>
+								<hr>
+								<div class="row">
+									<div class="col-md-4">
+										<img class="img-responsive" src="{{ url_for('static', filename='images/dht11.png') }}">
+									</div>
+									<div class="col-md-7 col-md-offset-1">
+										<br>
+										<div class="form-group">
+											<label class="control-label" for="thprocessbutton">Temperature/Humidity Monitor:</label>
+											<br>
+											<input type="checkbox" class="form-control" data-toggle="toggle" data-on="Running" data-off="Stopped" data-onstyle="success" data-offstyle="danger" id="thprocessbutton">
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					
+					<div class="col-md-6 pull-right">
+						{% for pin,led in leds.items() %}
+						<div class="panel panel-default">
+							<div class="panel-heading">
+								<strong>LED (PIN: {{ pin }})</strong>
+							</div>
+							<div class="panel-body">
+								<div class="col-md-4">
+									<img class="img-responsive" src="{{ url_for('static', filename='images/led.png') }}">
+								</div>
+								<div class="col-md-7 col-md-offset-1">
+									<div class="form-group">
+										<label for="lightbutton_{{ pin }}">Switch:</label>
+										<br>
+										<input type="checkbox" class="form-control" data-toggle="toggle" id="lightbutton_{{ pin }}">
+									</div>
+									<br>
+									<div class="form-group">
+										<label for="lightslider_{{ pin }}">Value:</label>
+										<div id="lightslider_{{ pin }}"></div>
+										<input type="text" class="form-control" id="lightslider_input_{{ pin }}" data-slider-id='lightslider' data-provide="slider" data-slider-min="0" data-slider-max="1" data-slider-step="0.01" data-slider-value="0">
+									</div>
+								</div>
+							</div>
+						</div>
+						{% endfor %}
+					</div>
+				</div>
+			</div>
+		</div>
+		
+		{% include '_scripts.html' %}
+		
+		<script>
+			var lightprocessbutton = $('#lightprocessbutton');
+			var thprocessbutton = $('#thprocessbutton');
+			
+			$(document).ready(function() {
+				$.getJSON("{{ url_for('lightmonitor') }}", function(result) {
+					var status = result.Status;
+					if (status) {
+						lightprocessbutton.bootstrapToggle('on');
+					}
+					
+					lightprocessbutton.change(function() {
+						if ($(this).prop("checked")) {
+							$.ajax({url: '{{ url_for("lightmonitorset",status="ON") }}'});
+						} else {
+							$.ajax({url: '{{ url_for("lightmonitorset",status="OFF") }}'});
+						}
+					});
+				});
+				
+				$.getJSON("{{ url_for('thmonitor') }}", function(result) {
+					var status = result.Status;
+					if (status) {
+						thprocessbutton.bootstrapToggle('on');
+					}
+					
+					thprocessbutton.change(function() {
+						if ($(this).prop("checked")) {
+							$.ajax({url: '{{ url_for("thmonitorset",status="ON") }}'});
+						} else {
+							$.ajax({url: '{{ url_for("thmonitorset",status="OFF") }}'});
+						}
+					});
+				});
+			});
+		</script>
+		
+		{% for pin,led in leds.items() %}
+		<script>
+			var sliderMoving_{{ pin }} = false;
+			
+			$(document).ready(function() {
+				var lightbutton_{{ pin }} = $("#lightbutton_{{ pin }}");
+				var lightslider_{{ pin }} = $("#lightslider_input_{{ pin }}");
+				
+				$.getJSON("{{ url_for('getLightValue',pin=pin) }}", function(result) {
+					var value = result.Value;
+					if (value > 0) {
+						lightbutton_{{ pin }}.bootstrapToggle('on');
+						lightslider_{{ pin }}.slider("setValue",value);
+					}
+					
+					lightbutton_{{ pin }}.change(function() {
+						if (!sliderMoving_{{ pin }}) {
+							if ($(this).prop("checked")) {
+								$.ajax({url: '{{ url_for("setLightValue",pin=pin,value=1) }}'});
+								lightslider_{{ pin }}.slider("setValue",1);
+							} else {
+								$.ajax({url: '{{ url_for("setLightValue",pin=pin,value=0) }}'});
+								lightslider_{{ pin }}.slider("setValue",0);
+							}
+						}
+					});
+					
+					lightslider_{{ pin }}.slider();
+					lightslider_{{ pin }}.slider("on","slideStop",function (newValue) {
+						sliderMoving_{{ pin }} = true;
+						
+						var url = '{{ url_for("setLightValue",pin=pin) }}/' + newValue;
+						
+						if (newValue > 0) {
+							lightbutton_{{ pin }}.bootstrapToggle('on');
+						} else {
+							lightbutton_{{ pin }}.bootstrapToggle('off');
+						}
+						
+						$.ajax({url: url});
+						
+						sliderMoving_{{ pin }} = false;
+					});
+				});
+			});
+		</script>
+		{% endfor %}
+		
+		<script>
+			var camerabutton = $('#camerabutton');
+			var camerarefreshbutton = $('#camerarefreshbutton');
+			var cameraimage = $('#cameraimage');
+			var camera_autorefresh = $('#camera_autorefresh');
+			var cameraimage_timeout;
+			var camera_loading = false;
+			
+			function getTimeoutInterval(num) {
+				var timeout;
+				if (num == 1) {
+					timeout = 1000;
+				} else if (num == 2) {
+					timeout = 5000;
+				} else if (num == 3) {
+					timeout = 10000;
+				} else if (num == 4) {
+					timeout = 30000;
+				} else if (num == 5) {
+					timeout = 60000;
+				}
+				
+				return timeout;
+			}
+			
+			function loadCameraImage(url) {
+				camera_loading = true;
+				
+				clearCameraTimeout();
+				
+				var date = new Date();
+				if (url) {
+					src = url + '?' + date.getTime();
+				} else {
+					src = '';
+				}
+				
+				cameraimage.attr("src",src);
+				
+				if (src) {
+					var selected = camera_autorefresh.val();
+					var timeout = getTimeoutInterval(selected);
+					if (timeout) {
+						cameraimage_timeout = setTimeout(function() {
+							loadCameraImage(url);
+						},timeout);
+					}
+				}
+				
+				camera_loading = false;
+			}
+			
+			function clearCameraTimeout() {
+				if (cameraimage_timeout) {
+					clearTimeout(cameraimage_timeout);
+				}
+			}
+			
+			function camerabuttonchange() {
+				if (camerabutton.prop("checked")) {
+					$.ajax({url: '{{ url_for("setcamera",status="ON") }}', success: function(result) {
+						loadCameraImage('{{ url_for("cameracapture") }}');
+					}});
+					cameraimage.removeClass('hidden');
+					camerarefreshbutton.removeClass('disabled');
+					camera_autorefresh.parent().removeClass('hidden');
+				} else {
+					$.ajax({url: '{{ url_for("setcamera",status="OFF") }}'});
+					cameraimage.addClass('hidden');
+					camerarefreshbutton.addClass('disabled');
+					camera_autorefresh.parent().addClass('hidden');
+					loadCameraImage('');
+				}
+			}
+			
+			function camerarefresh() {
+				if (!camerarefreshbutton.hasClass('disabled') && !camera_loading) {
+					var date = new Date();
+					var url = cameraimage.attr('src');
+					if (url) {
+						src = url + '?' + date.getTime();
+						cameraimage.attr("src",src);
+					}
+				}
+			}
+			
+			$(document).ready(function() {
+				var camera_autorefresh_value = Cookies.get('camera_autorefresh');
+				if (camera_autorefresh_value) {
+					camera_autorefresh.val(camera_autorefresh_value);
+				}
+				
+				camera_autorefresh.on('change', function() {
+					loadCameraImage('{{ url_for("cameracapture") }}');
+					Cookies.set('camera_autorefresh', this.value);
+				});
+				
+				$.getJSON("{{ url_for('camerastatus') }}", function(result) {
+					var status = result.Status;
+					if (status) {
+						camerabutton.bootstrapToggle('on');
+						loadCameraImage('{{ url_for("cameracapture") }}');
+						cameraimage.removeClass('hidden');
+						camerarefreshbutton.removeClass('disabled');
+						camera_autorefresh.parent().removeClass('hidden');
+					}
+					
+					camerabutton.change(function() {
+						camerabuttonchange();
+					});
+				});
+			});
+		</script>
+	</body>
+</html>

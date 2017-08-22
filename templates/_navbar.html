@@ -1,0 +1,22 @@
+<nav class="navbar navbar-inverse navbar-fixed-side">
+	<div class="container" id="navbar">
+		<div class="navbar-header">
+			<button class="navbar-toggle" data-target=".navbar-collapse" data-toggle="collapse">
+				<span class="sr-only">Toggle navigation</span>
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+			</button>
+			<a class="navbar-brand" href="{{ url_for('index') }}"><small>Leyond's Smart Utility</small></a>
+		</div>
+		<div class="navbar-collapse collapse">
+			<ul class="nav navbar-nav">
+				<li><a href="{{ url_for('index') }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
+				<li><a href="{{ url_for('controlpanel') }}"><i class="fa fa-desktop"></i> Control Panel</a></li>
+			</ul>
+			<ul class="nav navbar-nav navbar-right">
+				<li><a href="{{ url_for('settings') }}"><i class="fa fa-cog"></i> Settings</a></li>
+			</ul>
+		</div>
+	</div>
+</nav>
